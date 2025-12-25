@@ -1,0 +1,69 @@
+version: "0.1"
+
+objects:
+  - code: SPB_SOVETSKAYA_4B_S1
+    name: "СПб, 2-я Советская, д. 4б стр. 1"
+    address_patterns:
+      - "2-я Советская"
+      - "4б"
+      - "стр. 1"
+
+resources:
+  # Привязка названий услуг в квитанции к каноническим ресурсам
+  invoice_service_map:
+    COLD_WATER:
+      - "Холодная вода (куб.м)"
+    HOT_WATER:
+      - "ХВС на нужды ГВС (куб.м)"
+    ELECTRICITY:
+      - "Электроэнергия (кВт·ч)"
+    HEAT:
+      - "Отопление (Гкал)"
+    SEWER:
+      - "Водоотведение (куб.м)"
+
+  # Привязка "Тип счетчика" в реестрах ИПУ к каноническим ресурсам (по подстрокам)
+  registry_meter_type_patterns:
+    COLD_WATER: ["холод", "хвс"]
+    HOT_WATER: ["горяч", "гвс"]
+    ELECTRICITY: ["элект"]
+    HEAT: ["отоп", "тепл"]
+
+matching:
+  keys_priority:
+    - ["object_code", "unit_number", "personal_account"]
+    - ["object_code", "unit_number"]
+    - ["unit_number", "personal_account"]
+
+  tolerances:
+    COLD_WATER: 0.01
+    HOT_WATER: 0.01
+    SEWER: 0.01
+    HEAT: 0.01
+    ELECTRICITY: 0.5
+
+heat:
+  # Если есть блок "Объемы по услуге Отопление", сверяем по Индивидуальному (без ОДН)
+  prefer_individual_from_block: true
+
+anomalies:
+  per_m2_percentiles:
+    enabled: true
+    resources: ["COLD_WATER", "HOT_WATER", "ELECTRICITY"]
+    low_quantile: 0.05
+    high_quantile: 0.95
+    flag_zero_if_median_positive: true
+
+  # Включим позже, когда появится история периодов
+  no_readings_streak:
+    enabled: false
+    months: 3
+
+controls:
+  sewer_equals_cold_plus_hot:
+    enabled: true
+    tolerance: 0.01
+
+unusual_charges:
+  rare_share_threshold: 0.05
+  recalc_abs_threshold: 0.01
